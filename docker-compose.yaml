@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  db:
+    image: mysql:5.7 # RDS Aurora Production version
+    container_name: mysql
+    command: --explicit_defaults_for_timestamp=1 --lower-case-table-names=0
+    volumes:
+      - ./.docker/mysql:/var/lib/mysql:rw
+    restart: 'no'
+    ports:
+      - '3306:3306'
+    network_mode: 'bridge'
+    environment:
+      MYSQL_DB: ${DB_TEST_NAME}
+      MYSQL_USER: ${DB_TEST_USERNAME}
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+
+  api:
+    build: .
+    entrypoint: yarn start:dev
+    ports:
+      - 4000:4000
+    network_mode: 'bridge'
+    volumes:
+      - .:/var/www/app

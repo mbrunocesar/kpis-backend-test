@@ -61,49 +61,63 @@ export class UsersService {
     return { id: user.user_id };
   }
 
-  async getStatistics(periodicQueryDto: PeriodicQueryDto) {
-    const validPositions = ['Director', 'Supervisor', 'Engineer'];
-    const user = await this.loginAsManager(periodicQueryDto.user_id);
+  async fetchUserData(periodicQueryDto: PeriodicQueryDto) {
+    const usersArrivingBefore = await this.usersRepository.getUsersArrivedBeforePeriod(periodicQueryDto);
+    const usersArrivingAfter = await this.usersRepository.getUsersArrivingInPeriod(periodicQueryDto);
+    const usersLeavingAfter = await this.usersRepository.getUsersLeavingInPeriod(periodicQueryDto);
 
+    return { usersArrivingBefore, usersArrivingAfter, usersLeavingAfter };
+  }
+
+  mapStatistics(userData: any, number_of_months: number) {
     const response = {
       headcounts: null,
       turnovers: null,
     };
 
-    if (user && user.user_id) {
-      const usersArrivingBefore = await this.usersRepository.getUsersArrivedBeforePeriod(periodicQueryDto);
-      const usersArrivingAfter = await this.usersRepository.getUsersArrivingInPeriod(periodicQueryDto);
-      const usersLeavingAfter = await this.usersRepository.getUsersLeavingInPeriod(periodicQueryDto);
-
-      let buffer_entry = {};
-      for (const userBlock of usersArrivingAfter) {
+    let buffer_entry = {};
+      for (const userBlock of userData.usersArrivingAfter) {
         buffer_entry[userBlock.distance_in_months] = parseInt(userBlock.total);
       }
 
       let buffer_exit = {};
-      for (const userBlock of usersLeavingAfter) {
+      for (const userBlock of userData.usersLeavingAfter) {
         buffer_exit[userBlock.distance_in_months] = parseInt(userBlock.total);
       }
 
-      let headcounts = {};
-      let turnovers = {};
+      let headcounts = [];
+      let turnovers = [];
 
-      let totalByNow = usersArrivingBefore.total;
-      for (let index = periodicQueryDto.number_of_months - 1; index >= 0; index--) {
+      let totalByNow = userData.usersArrivingBefore.total;
+      for (let index = number_of_months - 1; index >= 0; index--) {
         if (buffer_entry[index]) {
           totalByNow = parseInt(totalByNow) + parseInt(buffer_entry[index]);
         }
 
+        let turnover = 0;;
         if (buffer_exit[index]) {
-          turnovers[index] = parseInt(buffer_exit[index]) / totalByNow * 100;
+          turnover = parseInt(buffer_exit[index]) / totalByNow * 100;
+        
           totalByNow = parseInt(totalByNow) - parseInt(buffer_exit[index]);
-        } else {
-          turnovers[index] = 0;
         }
-        headcounts[index] = parseInt(totalByNow);
+        
+        turnovers.push({ month: index, value: turnover });
+        headcounts.push({ month: index, value: parseInt(totalByNow) });
       }
-      response.headcounts = {...headcounts};
-      response.turnovers = {...turnovers};
+      response.headcounts = headcounts;
+      response.turnovers = turnovers;
+
+      return response;
+  }
+
+  async getStatistics(periodicQueryDto: PeriodicQueryDto) {
+    const validPositions = ['Director', 'Supervisor', 'Engineer'];
+    const user = await this.loginAsManager(periodicQueryDto.user_id);
+
+    if (user && user.user_id) {
+      const userData = await this.fetchUserData(periodicQueryDto);
+
+      const response = this.mapStatistics(userData, periodicQueryDto.number_of_months);
 
       return response;
     }
