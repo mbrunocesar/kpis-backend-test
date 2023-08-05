@@ -2,22 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginateRequestDto } from '@shared/base-repository/helpers/paginate-helper/dto/paginate-request.dto';
 import { IPaginate } from '@shared/base-repository/helpers/paginate-helper/i-paginate';
-import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dto/login.dto';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { LinkUsersDto } from '../dto/link-users.dto';
 import { PeriodicQueryDto } from '../dto/periodic-query.dto';
 import { User } from '../entities/user.entity';
 import { IUsersRepository } from '../repositories/i-users-repository';
-import { hash, compare } from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: IUsersRepository,
-
-    private jwtService: JwtService,
+    private usersRepository: IUsersRepository
   ) {}
 
   async login(loginDto: LoginDto) : Promise<User | { user_id, error }> {
