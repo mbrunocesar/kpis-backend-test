@@ -58,12 +58,14 @@ export class UsersService {
 
     const userId = { id: user.user_id };
 
-    const linkUsersDto = new LinkUsersDto();
-    linkUsersDto.leader_email = createUserDto.leader_email;
-    linkUsersDto.employee_email = createUserDto.email;
-    const success = await this.linkUsers(linkUsersDto);
+    if (createUserDto.leader_email) {
+      const linkUsersDto = new LinkUsersDto();
+      linkUsersDto.leader_email = createUserDto.leader_email;
+      linkUsersDto.employee_email = createUserDto.email;
+      await this.linkUsers(linkUsersDto);
+    }
 
-    return success ? userId : user;
+    return userId;
   }
 
   async linkUsers(linkUsersDto: LinkUsersDto) : Promise<{ success: boolean }> {
@@ -76,7 +78,7 @@ export class UsersService {
       null,
       ['leaders_relationship']);
 
-    if (!employee.user_id || !leader.user_id) {
+    if (!employee || !employee.user_id || !leader || !leader.user_id) {
       return { success: false };
     }
 

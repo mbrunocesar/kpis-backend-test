@@ -20,6 +20,16 @@ export class User {
       this.position = createUserDto.position;
       this.leader_email = createUserDto.leader_email;
       this.leader_id = createUserDto.leader_id;
+      this.admitted_at = createUserDto.admitted_at && createUserDto.admitted_at != ""
+        ? createUserDto.admitted_at
+        : null;
+      this.rescinded_at = createUserDto.rescinded_at && createUserDto.rescinded_at != ""
+        ? createUserDto.rescinded_at
+        : null;
+
+      if (this.rescinded_at) {
+        this.status = false;
+      }
     }
   }
 

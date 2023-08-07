@@ -11,7 +11,7 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({ description: 'The leader email.' })
-  @IsNotEmpty()
+  @IsOptional()
   leader_email: string;
 
   @ApiProperty({ description: 'The user position.' })
@@ -19,4 +19,8 @@ export class CreateUserDto {
   position: string;
 
   leader_id: number;
+
+  admitted_at: string;
+
+  rescinded_at: string;
 }
