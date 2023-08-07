@@ -14,11 +14,13 @@ export class UsersRepository
   implements IUsersRepository
 {
   private usersRepository: Repository<User>;
+  private usersRelationshipRepository: Repository<UserRelationship>;
 
   constructor(@InjectConnection() connection: Connection) {
     super();
 
     this.usersRepository = connection.getRepository(User);
+    this.usersRelationshipRepository = connection.getRepository(UserRelationship);
   }
 
   create(createUserDto: CreateUserDto): User {
@@ -29,6 +31,10 @@ export class UsersRepository
     return this.usersRepository.save(user);
   }
 
+  saveRelationship(relationship: UserRelationship): Promise<UserRelationship> {
+    return this.usersRelationshipRepository.save(relationship);
+  }
+
   findAndCount(options?: IFindManyOptions): Promise<[User[], number]> {
     return this.usersRepository.findAndCount(options);
   }
@@ -37,6 +43,17 @@ export class UsersRepository
     return this.usersRepository.findOne({
       where: {
         user_id: user_id,
+        status: true,
+        position: validPositions ? In(validPositions) : null
+      },
+      relations
+    });
+  }
+
+  findByEmail(email: string, validPositions?: string[], relations?: string[]): Promise<User> {
+    return this.usersRepository.findOne({
+      where: {
+        email: email,
         status: true,
         position: validPositions ? In(validPositions) : null
       },

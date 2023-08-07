@@ -11,22 +11,27 @@ export class UsersController {
 
   @Get('/login')
   login(@Query() loginDto: LoginDto) {
-    return this.usersService.login(loginDto);
+    return this.usersService.loginAsManager(loginDto);
   }
 
   @Get('/employees')
   getEmployees(@Query() loginDto: LoginDto) {
-    return this.usersService.getEmployees(loginDto);
+    return this.usersService.getEmployees(loginDto.email);
   }
 
   @Get('/leaders')
   getLeaders(@Query() loginDto: LoginDto) {
-    return this.usersService.getLeaders(loginDto);
+    return this.usersService.getLeaders(loginDto.email);
   }
 
   @Post('/create')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('/link-users')
+  linkUsers(@Body() linkUsersDto: LinkUsersDto) {
+    return this.usersService.linkUsers(linkUsersDto);
   }
 
   @Get('/get-statistics')

@@ -7,7 +7,10 @@ import { CreateUserDto } from '../dto/create-user.dto';
 import { LinkUsersDto } from '../dto/link-users.dto';
 import { PeriodicQueryDto } from '../dto/periodic-query.dto';
 import { User } from '../entities/user.entity';
+import { UserRelationship } from '../entities/user-relationship.entity';
 import { IUsersRepository } from '../repositories/i-users-repository';
+
+const validPositions = ['Diretor', 'Supervisor', 'Engenheiro'];
 
 @Injectable()
 export class UsersService {
@@ -22,39 +25,85 @@ export class UsersService {
     return user;
   }
 
-  async loginAsManager(user_id: number) : Promise<User> {
-    const validPositions = ['Director', 'Supervisor', 'Engineer'];
+  async loginAsManager(loginDto: LoginDto) : Promise<User> {
+    const user = await this.usersRepository.findLogin(loginDto, validPositions);
+
+    return user;
+  }
+
+  async loginAsManagerById(user_id: number) : Promise<User> {
     const user = await this.usersRepository.findOne(user_id, validPositions);
 
     return user;
   }
 
-  async getEmployees(loginDto: LoginDto, validPositions?: string[]) {
-    const user = await this.usersRepository.findLogin(loginDto, validPositions, ['employees']);
+  async getEmployees(email: string, validPositions?: string[]) {
+    const user = await this.usersRepository.findByEmail(email, validPositions, ['employees']);
 
-    if (!user) {
-      return { error: 'unauthorized' };
-    }
     return user;
   }
 
-  async getLeaders(loginDto: LoginDto) {
-    const user = await this.usersRepository.findLogin(loginDto, null, ['leaders', 'leaders_relationship']);
+  async getLeaders(email: string) {
+    const user = await this.usersRepository.findByEmail(email, null, ['leaders', 'leaders_relationship']);
 
-    if (!user) {
-      return { error: 'unauthorized' };
-    }
     return user;
   }
 
   async create(createUserDto: CreateUserDto) {
-    if (createUserDto.leader_email) {
-      const leader = await this.login({ email: createUserDto.leader_email });
-      createUserDto.leader_id = leader.user_id;
+    const user = await this.usersRepository.save(createUserDto);
+
+    if (!user.user_id) {
+      return user;
     }
 
-    const user = await this.usersRepository.save(createUserDto);
-    return { id: user.user_id };
+    const userId = { id: user.user_id };
+
+    const linkUsersDto = new LinkUsersDto();
+    linkUsersDto.leader_email = createUserDto.leader_email;
+    linkUsersDto.employee_email = createUserDto.email;
+    const success = await this.linkUsers(linkUsersDto);
+
+    return success ? userId : user;
+  }
+
+  async linkUsers(linkUsersDto: LinkUsersDto) : Promise<{ success: boolean }> {
+    const leader = await this.usersRepository.findByEmail(
+      linkUsersDto.leader_email,
+      validPositions,
+      ['leaders', 'leaders_relationship']);
+    const employee = await this.usersRepository.findByEmail(
+      linkUsersDto.employee_email,
+      null,
+      ['leaders_relationship']);
+
+    if (!employee.user_id || !leader.user_id) {
+      return { success: false };
+    }
+
+    employee.leader_id = leader.user_id;
+    employee.leader_email = leader.email;
+    const result = await this.usersRepository.save(employee);
+
+    // inherit leaders relationship
+    const leaders_relationship = leader.leaders_relationship;
+    for (const relationship of leaders_relationship) {
+      delete relationship.relationship_id;
+      delete relationship.user;
+      relationship.employee_id = employee.user_id;
+      relationship.directness_level = relationship.directness_level + 1;
+
+      await this.usersRepository.saveRelationship(relationship);
+    }
+
+    // link to direct leader
+    const newRelationShip = new UserRelationship({
+      employee_id: employee.user_id,
+      leader_id: leader.user_id,
+      directness_level: 1
+    });
+    await this.usersRepository.saveRelationship(newRelationShip);
+
+    return { success : !!result.user_id };
   }
 
   async fetchUserData(periodicQueryDto: PeriodicQueryDto) {
@@ -107,8 +156,7 @@ export class UsersService {
   }
 
   async getStatistics(periodicQueryDto: PeriodicQueryDto) {
-    const validPositions = ['Director', 'Supervisor', 'Engineer'];
-    const user = await this.loginAsManager(periodicQueryDto.user_id);
+    const user = await this.loginAsManagerById(periodicQueryDto.user_id);
 
     if (user && user.user_id) {
       const userData = await this.fetchUserData(periodicQueryDto);

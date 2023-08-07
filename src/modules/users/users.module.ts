@@ -16,6 +16,10 @@ import { UsersRepository } from './repositories/users-repository';
       provide: getRepositoryToken(User),
       useClass: UsersRepository,
     },
+    {
+      provide: getRepositoryToken(UsersRepository),
+      useClass: UsersRepository,
+    },
   ],
 })
 export class UsersModule {}
